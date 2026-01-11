@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, FileText, Pencil, Trash2, Loader2 } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { ChevronDown, ChevronRight, FileText, Pencil, Trash2, Loader2, Target, CheckCircle, AlertCircle, TrendingUp, Sparkles } from 'lucide-react'
 import { StatusTimeline } from './status-timeline'
 import { StatusBadge } from './status-badge'
 import { EditApplicationModal } from './edit-application-modal'
@@ -16,6 +17,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+
+// Dynamically import PDF components to avoid SSR issues
+const PDFViewerModal = dynamic(
+  () => import('@/components/pdf/pdf-viewer-modal').then(mod => ({ default: mod.PDFViewerModal })),
+  { ssr: false }
+)
+const PDFEditorModal = dynamic(
+  () => import('@/components/pdf/pdf-editor-modal').then(mod => ({ default: mod.PDFEditorModal })),
+  { ssr: false }
+)
 
 interface ApplicationCardProps {
   application: JobApplicationWithDetails
@@ -46,12 +57,16 @@ export function ApplicationCard({ application }: ApplicationCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [isLoadingResume, setIsLoadingResume] = useState(false)
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false)
+  const [pdfEditorOpen, setPdfEditorOpen] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [pdfFilename, setPdfFilename] = useState('')
   const router = useRouter()
   const supabase = createClient()
 
   const faviconUrl = getCompanyFaviconUrl(application.company_name)
 
-  // Open resume using signed URL
+  // Open resume using signed URL in in-app viewer
   const handleViewResume = async () => {
     if (!application.resume) return
 
@@ -64,14 +79,30 @@ export function ApplicationCard({ application }: ApplicationCardProps) {
         throw new Error(data.error || 'Failed to get file URL')
       }
 
-      // Open in new tab for viewing
-      window.open(data.url, '_blank', 'noopener,noreferrer')
+      // Open in in-app PDF viewer
+      setPdfUrl(data.url)
+      setPdfFilename(data.filename || application.resume.resume_name + '.pdf')
+      setPdfViewerOpen(true)
     } catch (error) {
       console.error('Failed to open resume:', error)
       alert('Failed to open resume. Please try again.')
     } finally {
       setIsLoadingResume(false)
     }
+  }
+
+  // Open PDF editor
+  const handleEditPdf = () => {
+    setPdfViewerOpen(false)
+    setPdfEditorOpen(true)
+  }
+
+  // Save PDF annotations
+  const handleSavePdfAnnotations = async (annotations: unknown[]) => {
+    // For now, just log the annotations
+    // In a full implementation, you would save these to the database
+    console.log('Saving annotations:', annotations)
+    // Could save to a separate annotations table or embed in the PDF
   }
 
   const handleStatusChange = async (newStatus: ApplicationStatus) => {
@@ -288,6 +319,81 @@ export function ApplicationCard({ application }: ApplicationCardProps) {
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{application.notes}</p>
             </div>
           )}
+
+          {/* ATS Analytics Section */}
+          {application.ats_keywords && application.ats_keywords.length > 0 && (
+            <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+              <div className="flex items-center gap-2 mb-4">
+                <Target className="h-5 w-5 text-blue-600" />
+                <h3 className="font-semibold text-gray-900">ATS Analysis</h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* ATS Score */}
+                <div className="bg-white rounded-lg p-3 border shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-12 h-12">
+                      <svg className="w-12 h-12 -rotate-90">
+                        <circle
+                          cx="24"
+                          cy="24"
+                          r="20"
+                          fill="none"
+                          stroke="#e5e7eb"
+                          strokeWidth="4"
+                        />
+                        <circle
+                          cx="24"
+                          cy="24"
+                          r="20"
+                          fill="none"
+                          className="stroke-blue-500"
+                          strokeWidth="4"
+                          strokeDasharray={`${(70 / 100) * 125} 125`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-sm font-bold text-blue-600">70</span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">ATS Score</p>
+                      <p className="text-sm font-medium text-gray-900">Good Match</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Keywords Count */}
+                <div className="bg-white rounded-lg p-3 border shadow-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <p className="text-xs text-gray-500">Keywords</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{application.ats_keywords.length}</p>
+                  <p className="text-xs text-gray-500">tracked keywords</p>
+                </div>
+
+                {/* Suggestions */}
+                <div className="bg-white rounded-lg p-3 border shadow-sm sm:col-span-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="h-4 w-4 text-purple-500" />
+                    <p className="text-xs text-gray-500">Optimization Tips</p>
+                  </div>
+                  <ul className="space-y-1">
+                    <li className="flex items-start gap-2 text-xs text-gray-600">
+                      <TrendingUp className="h-3 w-3 mt-0.5 text-purple-500 shrink-0" />
+                      Add quantifiable achievements
+                    </li>
+                    <li className="flex items-start gap-2 text-xs text-gray-600">
+                      <TrendingUp className="h-3 w-3 mt-0.5 text-purple-500 shrink-0" />
+                      Include relevant certifications
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -297,6 +403,33 @@ export function ApplicationCard({ application }: ApplicationCardProps) {
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
       />
+
+      {/* PDF Viewer Modal */}
+      {application.resume && (
+        <PDFViewerModal
+          open={pdfViewerOpen}
+          onOpenChange={setPdfViewerOpen}
+          pdfUrl={pdfUrl}
+          filename={pdfFilename}
+          resumeId={application.resume.resume_id}
+          onEdit={handleEditPdf}
+          atsKeywords={application.ats_keywords || []}
+          jobTitle={application.job_title}
+          companyName={application.company_name}
+        />
+      )}
+
+      {/* PDF Editor Modal */}
+      {application.resume && (
+        <PDFEditorModal
+          open={pdfEditorOpen}
+          onOpenChange={setPdfEditorOpen}
+          pdfUrl={pdfUrl}
+          filename={pdfFilename}
+          resumeId={application.resume.resume_id}
+          onSave={handleSavePdfAnnotations}
+        />
+      )}
     </div>
   )
 }

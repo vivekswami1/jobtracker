@@ -1,10 +1,21 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { FileText, ExternalLink, Trash2, Loader2, Download } from 'lucide-react'
+import { FileText, Eye, Trash2, Loader2, Download, Edit } from 'lucide-react'
 import type { Resume } from '@/types/database'
+
+// Dynamically import PDF components to avoid SSR issues
+const PDFViewerModal = dynamic(
+  () => import('@/components/pdf/pdf-viewer-modal').then(mod => ({ default: mod.PDFViewerModal })),
+  { ssr: false }
+)
+const PDFEditorModal = dynamic(
+  () => import('@/components/pdf/pdf-editor-modal').then(mod => ({ default: mod.PDFEditorModal })),
+  { ssr: false }
+)
 
 interface ResumeListProps {
   resumes: Resume[]
@@ -15,32 +26,30 @@ export function ResumeList({ resumes }: ResumeListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [loadingUrlId, setLoadingUrlId] = useState<string | null>(null)
 
-  // Get signed URL and open/download the file
-  const handleViewOrDownload = async (resume: Resume, download: boolean = false) => {
+  // PDF viewer state
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false)
+  const [pdfEditorOpen, setPdfEditorOpen] = useState(false)
+  const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null)
+  const [currentPdfFilename, setCurrentPdfFilename] = useState('')
+  const [currentResumeId, setCurrentResumeId] = useState('')
+
+  // Get signed URL and open in viewer
+  const handleView = async (resume: Resume) => {
     setLoadingUrlId(resume.resume_id)
 
     try {
-      // Pass download param to get appropriate signed URL
-      const downloadParam = download ? '?download=true' : ''
-      const response = await fetch(`/api/resumes/${resume.resume_id}/signed-url${downloadParam}`)
+      const response = await fetch(`/api/resumes/${resume.resume_id}/signed-url`)
       const data = await response.json()
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to get file URL')
       }
 
-      if (download) {
-        // Trigger download
-        const link = document.createElement('a')
-        link.href = data.url
-        link.download = data.filename
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-      } else {
-        // Open in new tab for viewing
-        window.open(data.url, '_blank', 'noopener,noreferrer')
-      }
+      // Open in in-app viewer
+      setCurrentPdfUrl(data.url)
+      setCurrentPdfFilename(data.filename || resume.resume_name + '.pdf')
+      setCurrentResumeId(resume.resume_id)
+      setPdfViewerOpen(true)
     } catch (error) {
       console.error('Failed to get signed URL:', error)
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -48,6 +57,46 @@ export function ResumeList({ resumes }: ResumeListProps) {
     } finally {
       setLoadingUrlId(null)
     }
+  }
+
+  // Download file
+  const handleDownload = async (resume: Resume) => {
+    setLoadingUrlId(resume.resume_id)
+
+    try {
+      const response = await fetch(`/api/resumes/${resume.resume_id}/signed-url?download=true`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get file URL')
+      }
+
+      // Trigger download
+      const link = document.createElement('a')
+      link.href = data.url
+      link.download = data.filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Failed to download:', error)
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Failed to download file: ${message}`)
+    } finally {
+      setLoadingUrlId(null)
+    }
+  }
+
+  // Open editor
+  const handleEdit = () => {
+    setPdfViewerOpen(false)
+    setPdfEditorOpen(true)
+  }
+
+  // Save annotations
+  const handleSaveAnnotations = async (annotations: unknown[]) => {
+    console.log('Saving annotations:', annotations)
+    // Implementation: save to database
   }
 
   // Delete resume via secure API
@@ -99,80 +148,102 @@ export function ResumeList({ resumes }: ResumeListProps) {
   }
 
   return (
-    <div className="space-y-3">
-      {resumes.map((resume) => (
-        <div
-          key={resume.resume_id}
-          className="flex items-center justify-between p-4 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <FileText className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">{resume.resume_name}</p>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span>
-                  {new Date(resume.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </span>
-                {resume.file_size && (
-                  <>
-                    <span>•</span>
-                    <span>{formatFileSize(resume.file_size)}</span>
-                  </>
-                )}
+    <>
+      <div className="space-y-3">
+        {resumes.map((resume) => (
+          <div
+            key={resume.resume_id}
+            className="flex items-center justify-between p-4 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <FileText className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">{resume.resume_name}</p>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span>
+                    {new Date(resume.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </span>
+                  {resume.file_size && (
+                    <>
+                      <span>•</span>
+                      <span>{formatFileSize(resume.file_size)}</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleView(resume)}
+                disabled={loadingUrlId === resume.resume_id}
+                className="text-gray-500 hover:text-blue-600"
+                title="View PDF"
+              >
+                {loadingUrlId === resume.resume_id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDownload(resume)}
+                disabled={loadingUrlId === resume.resume_id}
+                className="text-gray-500 hover:text-green-600"
+                title="Download PDF"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDelete(resume)}
+                disabled={deletingId === resume.resume_id}
+                className="text-gray-500 hover:text-red-600"
+                title="Delete resume"
+              >
+                {deletingId === resume.resume_id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
+        ))}
+      </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleViewOrDownload(resume, false)}
-              disabled={loadingUrlId === resume.resume_id}
-              className="text-gray-500 hover:text-blue-600"
-              title="View PDF"
-            >
-              {loadingUrlId === resume.resume_id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ExternalLink className="h-4 w-4" />
-              )}
-            </Button>
+      {/* PDF Viewer Modal */}
+      <PDFViewerModal
+        open={pdfViewerOpen}
+        onOpenChange={setPdfViewerOpen}
+        pdfUrl={currentPdfUrl}
+        filename={currentPdfFilename}
+        resumeId={currentResumeId}
+        onEdit={handleEdit}
+      />
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleViewOrDownload(resume, true)}
-              disabled={loadingUrlId === resume.resume_id}
-              className="text-gray-500 hover:text-green-600"
-              title="Download PDF"
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleDelete(resume)}
-              disabled={deletingId === resume.resume_id}
-              className="text-gray-500 hover:text-red-600"
-              title="Delete resume"
-            >
-              {deletingId === resume.resume_id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </div>
-      ))}
-    </div>
+      {/* PDF Editor Modal */}
+      <PDFEditorModal
+        open={pdfEditorOpen}
+        onOpenChange={setPdfEditorOpen}
+        pdfUrl={currentPdfUrl}
+        filename={currentPdfFilename}
+        resumeId={currentResumeId}
+        onSave={handleSaveAnnotations}
+      />
+    </>
   )
 }

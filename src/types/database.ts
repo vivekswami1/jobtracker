@@ -19,8 +19,10 @@ export interface Resume {
   resume_id: string
   user_id: string
   resume_name: string
-  file_url: string
+  file_url: string | null
   file_path: string
+  file_size?: number | null
+  original_filename?: string | null
   is_default: boolean
   created_at: string
   updated_at: string
