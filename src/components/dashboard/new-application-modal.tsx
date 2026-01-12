@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -21,11 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Sparkles, Plus, Upload, FileText, X, CheckCircle } from 'lucide-react'
+import { Loader2, Sparkles, Upload, FileText, X, CheckCircle } from 'lucide-react'
 import type { Resume, ApplicationStatus } from '@/types/database'
 
 interface NewApplicationModalProps {
   resumes: Resume[]
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 const STATUSES: { value: ApplicationStatus; label: string }[] = [
@@ -39,12 +40,10 @@ const STATUSES: { value: ApplicationStatus; label: string }[] = [
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
-export function NewApplicationModal({ resumes }: NewApplicationModalProps) {
+export function NewApplicationModal({ resumes, open, onOpenChange }: NewApplicationModalProps) {
   const router = useRouter()
   const supabase = createClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [parsing, setParsing] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -227,7 +226,7 @@ export function NewApplicationModal({ resumes }: NewApplicationModalProps) {
 
       if (error) throw error
 
-      setOpen(false)
+      onOpenChange(false)
       resetForm()
       router.refresh()
     } catch (error) {
@@ -240,13 +239,7 @@ export function NewApplicationModal({ resumes }: NewApplicationModalProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          New Application
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Job Application</DialogTitle>
@@ -556,7 +549,7 @@ export function NewApplicationModal({ resumes }: NewApplicationModalProps) {
               type="button"
               variant="outline"
               onClick={() => {
-                setOpen(false)
+                onOpenChange(false)
                 resetForm()
               }}
             >

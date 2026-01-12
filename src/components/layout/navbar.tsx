@@ -26,38 +26,36 @@ export function Navbar({ user }: NavbarProps) {
   const pathname = usePathname()
 
   return (
-    <nav className="border-b bg-white">
+    <nav className="border-b bg-white sticky top-0 z-40">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-14 md:h-16 items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-8">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <Briefcase className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">JobTracker</span>
-            </Link>
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <Briefcase className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+            <span className="text-lg md:text-xl font-bold">JobTracker</span>
+          </Link>
 
-            {/* Nav Links */}
-            <div className="flex items-center gap-1">
-              {navItems.map((item) => {
-                const Icon = item.icon
-                const isActive = pathname === item.href
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-gray-100 text-gray-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                )
-              })}
-            </div>
+          {/* Desktop Nav Links - Hidden on mobile */}
+          <div className="hidden md:flex items-center gap-1">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-gray-100 text-gray-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              )
+            })}
           </div>
 
           {/* User Nav */}

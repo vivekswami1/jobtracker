@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/layout/navbar'
+import { MobileNav } from '@/components/layout/mobile-nav'
 import { CalendarView } from '@/components/dashboard/calendar-view'
 import type { JobApplicationWithDetails } from '@/types/database'
 
@@ -33,11 +34,12 @@ export default async function CalendarPage() {
   }))
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col pb-20 md:pb-0">
       <Navbar user={user} />
       <main className="flex-1 flex flex-col">
         <CalendarView applications={processedApplications} />
       </main>
+      <MobileNav />
     </div>
   )
 }

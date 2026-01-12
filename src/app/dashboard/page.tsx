@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/layout/navbar'
+import { MobileNav } from '@/components/layout/mobile-nav'
 import { ApplicationList } from '@/components/dashboard/application-list'
 import { DashboardHeader } from '@/components/dashboard/dashboard-header'
 import type { JobApplicationWithDetails, Resume } from '@/types/database'
@@ -41,10 +42,10 @@ export default async function DashboardPage() {
   }))
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       <Navbar user={user} />
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-4 md:py-8">
         {/* Header */}
         <DashboardHeader
           resumes={resumes || []}
@@ -54,6 +55,9 @@ export default async function DashboardPage() {
         {/* Application List */}
         <ApplicationList applications={processedApplications} />
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo, useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
@@ -9,6 +9,20 @@ import type { JobApplicationWithDetails, ApplicationStatus } from '@/types/datab
 
 interface CalendarViewProps {
   applications: JobApplicationWithDetails[]
+}
+
+// Hook to detect mobile viewport
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  return isMobile
 }
 
 // Status color mapping
@@ -58,6 +72,7 @@ function getCompanyLogoUrl(companyName: string): string {
 export function CalendarView({ applications }: CalendarViewProps) {
   const router = useRouter()
   const [isClient, setIsClient] = useState(false)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     setIsClient(true)
@@ -124,58 +139,71 @@ export function CalendarView({ applications }: CalendarViewProps) {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Legend */}
-      <div className="flex flex-wrap justify-center gap-4 p-4 bg-white border-b">
-        <span className="text-sm font-medium text-gray-700">Status:</span>
-        {Object.entries(STATUS_COLORS).map(([status, colors]) => (
-          <div key={status} className="flex items-center gap-1.5">
-            <div
-              className="w-3 h-3 rounded-sm"
-              style={{ backgroundColor: colors.bg }}
-            />
-            <span className="text-sm text-gray-600">
-              {STATUS_LABELS[status as ApplicationStatus]}
-            </span>
-          </div>
-        ))}
+      {/* Legend - scrollable on mobile */}
+      <div className="bg-white border-b overflow-x-auto">
+        <div className="flex items-center gap-2 md:gap-4 p-3 md:p-4 md:justify-center min-w-max">
+          <span className="text-xs md:text-sm font-medium text-gray-700 shrink-0">Status:</span>
+          {Object.entries(STATUS_COLORS).map(([status, colors]) => (
+            <div key={status} className="flex items-center gap-1 md:gap-1.5 shrink-0">
+              <div
+                className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm"
+                style={{ backgroundColor: colors.bg }}
+              />
+              <span className="text-xs md:text-sm text-gray-600">
+                {STATUS_LABELS[status as ApplicationStatus]}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Calendar */}
-      <div className="flex-1 p-4 bg-gray-50 overflow-auto">
-        <div className="bg-white rounded-lg shadow-sm p-6 min-h-[700px]">
+      <div className="flex-1 p-2 md:p-4 bg-gray-50 overflow-auto">
+        <div className="bg-white rounded-lg shadow-sm p-2 md:p-6 min-h-[500px] md:min-h-[700px]">
           {isClient && (
             <FullCalendar
               plugins={[dayGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
+              initialView={isMobile ? 'dayGridMonth' : 'dayGridMonth'}
               events={calendarEvents}
               eventClick={handleEventClick}
-              headerToolbar={{
+              headerToolbar={isMobile ? {
+                left: 'prev,next',
+                center: 'title',
+                right: 'today',
+              } : {
                 left: 'prev,next today',
                 center: 'title',
                 right: 'dayGridMonth,dayGridWeek',
               }}
-              height={650}
+              height={isMobile ? 'auto' : 650}
+              contentHeight={isMobile ? 'auto' : undefined}
               eventDisplay="block"
-              dayMaxEvents={3}
+              dayMaxEvents={isMobile ? 2 : 3}
               moreLinkClick="popover"
-              fixedWeekCount={true}
+              fixedWeekCount={!isMobile}
+              dayHeaderFormat={isMobile ? { weekday: 'narrow' } : { weekday: 'short' }}
+              titleFormat={isMobile ? { year: 'numeric', month: 'short' } : { year: 'numeric', month: 'long' }}
               eventContent={(eventInfo) => (
-                <div className="px-1.5 py-1 text-xs cursor-pointer overflow-hidden flex items-start gap-1.5">
-                  <img
-                    src={eventInfo.event.extendedProps.logoUrl}
-                    alt=""
-                    className="w-4 h-4 rounded shrink-0 mt-0.5"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none'
-                    }}
-                  />
+                <div className={`px-1 md:px-1.5 py-0.5 md:py-1 cursor-pointer overflow-hidden flex items-start gap-1 md:gap-1.5 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                  {!isMobile && (
+                    <img
+                      src={eventInfo.event.extendedProps.logoUrl}
+                      alt=""
+                      className="w-4 h-4 rounded shrink-0 mt-0.5"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
+                    />
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="font-medium truncate">
                       {eventInfo.event.extendedProps.companyName}
                     </div>
-                    <div className="text-[10px] opacity-90 truncate">
-                      {STATUS_LABELS[eventInfo.event.extendedProps.status as ApplicationStatus]}
-                    </div>
+                    {!isMobile && (
+                      <div className="text-[10px] opacity-90 truncate">
+                        {STATUS_LABELS[eventInfo.event.extendedProps.status as ApplicationStatus]}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
