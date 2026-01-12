@@ -42,7 +42,17 @@ interface CalendarEvent {
     companyName: string
     jobTitle: string
     status: ApplicationStatus
+    logoUrl: string
   }
+}
+
+// Generate company favicon URL from company name
+function getCompanyLogoUrl(companyName: string): string {
+  const domain = companyName
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .trim()
+  return `https://www.google.com/s2/favicons?domain=${domain}.com&sz=32`
 }
 
 export function CalendarView({ applications }: CalendarViewProps) {
@@ -58,6 +68,8 @@ export function CalendarView({ applications }: CalendarViewProps) {
     const events: CalendarEvent[] = []
 
     applications.forEach((app) => {
+      const logoUrl = getCompanyLogoUrl(app.company_name)
+
       // Add applied date as first event
       const appliedColor = STATUS_COLORS['applied']
       events.push({
@@ -72,6 +84,7 @@ export function CalendarView({ applications }: CalendarViewProps) {
           companyName: app.company_name,
           jobTitle: app.job_title,
           status: 'applied',
+          logoUrl,
         },
       })
 
@@ -94,6 +107,7 @@ export function CalendarView({ applications }: CalendarViewProps) {
               companyName: app.company_name,
               jobTitle: app.job_title,
               status: history.status,
+              logoUrl,
             },
           })
         })
@@ -111,7 +125,7 @@ export function CalendarView({ applications }: CalendarViewProps) {
   return (
     <div className="h-full flex flex-col">
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 p-4 bg-white border-b">
+      <div className="flex flex-wrap justify-center gap-4 p-4 bg-white border-b">
         <span className="text-sm font-medium text-gray-700">Status:</span>
         {Object.entries(STATUS_COLORS).map(([status, colors]) => (
           <div key={status} className="flex items-center gap-1.5">
@@ -146,12 +160,22 @@ export function CalendarView({ applications }: CalendarViewProps) {
               moreLinkClick="popover"
               fixedWeekCount={true}
               eventContent={(eventInfo) => (
-                <div className="px-1.5 py-1 text-xs cursor-pointer overflow-hidden">
-                  <div className="font-medium truncate">
-                    {eventInfo.event.extendedProps.companyName}
-                  </div>
-                  <div className="text-[10px] opacity-90 truncate">
-                    {STATUS_LABELS[eventInfo.event.extendedProps.status as ApplicationStatus]}
+                <div className="px-1.5 py-1 text-xs cursor-pointer overflow-hidden flex items-start gap-1.5">
+                  <img
+                    src={eventInfo.event.extendedProps.logoUrl}
+                    alt=""
+                    className="w-4 h-4 rounded shrink-0 mt-0.5"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none'
+                    }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium truncate">
+                      {eventInfo.event.extendedProps.companyName}
+                    </div>
+                    <div className="text-[10px] opacity-90 truncate">
+                      {STATUS_LABELS[eventInfo.event.extendedProps.status as ApplicationStatus]}
+                    </div>
                   </div>
                 </div>
               )}

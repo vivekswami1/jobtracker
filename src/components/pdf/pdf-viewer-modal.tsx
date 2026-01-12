@@ -80,7 +80,17 @@ export function PDFViewerModal({
 
   // Mock ATS analysis - in production, this would call an API
   useEffect(() => {
-    if (open && atsKeywords.length > 0) {
+    // Only run when modal opens, not on every render
+    if (!open) {
+      setAnalysis(null)
+      setIsAnalyzing(false)
+      return
+    }
+
+    // Skip if already analyzing or has analysis
+    if (isAnalyzing || analysis) return
+
+    if (atsKeywords && atsKeywords.length > 0) {
       setIsAnalyzing(true)
       // Simulate API call delay
       const timer = setTimeout(() => {
@@ -107,7 +117,7 @@ export function PDFViewerModal({
         setIsAnalyzing(false)
       }, 1500)
       return () => clearTimeout(timer)
-    } else if (open) {
+    } else {
       // Default analysis when no keywords provided
       setAnalysis({
         score: 72,
@@ -124,7 +134,7 @@ export function PDFViewerModal({
         },
       })
     }
-  }, [open, atsKeywords])
+  }, [open])
 
   const handleDownload = () => {
     if (pdfUrl) {
