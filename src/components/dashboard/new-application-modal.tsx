@@ -55,6 +55,10 @@ export function NewApplicationModal({ resumes }: NewApplicationModalProps) {
   const [jobTitle, setJobTitle] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [status, setStatus] = useState<ApplicationStatus>('applied')
+
+  // Resume selection state
+  const [resumeSource, setResumeSource] = useState<'existing' | 'upload'>('existing')
+  const [selectedResumeId, setSelectedResumeId] = useState<string>('')
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [resumeName, setResumeName] = useState('')
   const [jobUrl, setJobUrl] = useState('')
@@ -68,6 +72,8 @@ export function NewApplicationModal({ resumes }: NewApplicationModalProps) {
     setJobTitle('')
     setCompanyName('')
     setStatus('applied')
+    setResumeSource('existing')
+    setSelectedResumeId('')
     setResumeFile(null)
     setResumeName('')
     setJobUrl('')
@@ -196,9 +202,11 @@ export function NewApplicationModal({ resumes }: NewApplicationModalProps) {
         throw new Error('Not authenticated')
       }
 
-      // Upload resume securely via API if file is selected
+      // Determine resume ID based on source
       let finalResumeId: string | null = null
-      if (resumeFile) {
+      if (resumeSource === 'existing' && selectedResumeId) {
+        finalResumeId = selectedResumeId
+      } else if (resumeSource === 'upload' && resumeFile) {
         finalResumeId = await uploadResumeSecurely()
       }
 
@@ -319,89 +327,160 @@ export function NewApplicationModal({ resumes }: NewApplicationModalProps) {
             </Select>
           </div>
 
-          {/* Resume Upload */}
-          <div className="space-y-2">
-            <Label>Resume (PDF)</Label>
-            {!resumeFile ? (
-              <div
-                className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                <p className="text-sm text-gray-600">Click to upload resume</p>
-                <p className="text-xs text-gray-400 mt-1">PDF only, max 5MB</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-              </div>
-            ) : (
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 rounded">
-                      {uploadStatus === 'success' ? (
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                      ) : (
-                        <FileText className="h-5 w-5 text-blue-600" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{resumeFile.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {(resumeFile.size / 1024).toFixed(1)} KB
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={clearFile}
-                    disabled={uploadStatus === 'uploading'}
-                    className="text-gray-400 hover:text-red-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+          {/* Resume Selection */}
+          <div className="space-y-3">
+            <Label>Resume (optional)</Label>
 
-                {/* Upload Progress Bar */}
-                {uploadStatus === 'uploading' && (
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                      <span>Uploading...</span>
-                      <span>{uploadProgress}%</span>
+            {/* Source Toggle */}
+            <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+              <button
+                type="button"
+                onClick={() => {
+                  setResumeSource('existing')
+                  clearFile()
+                }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                  resumeSource === 'existing'
+                    ? 'bg-white shadow text-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                Select Saved Resume
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setResumeSource('upload')
+                  setSelectedResumeId('')
+                }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                  resumeSource === 'upload'
+                    ? 'bg-white shadow text-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Upload className="h-4 w-4" />
+                Upload New
+              </button>
+            </div>
+
+            {/* Existing Resume Selection */}
+            {resumeSource === 'existing' && (
+              <div className="space-y-2">
+                {resumes.length > 0 ? (
+                  <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a resume..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {resumes.map((resume) => (
+                        <SelectItem key={resume.resume_id} value={resume.resume_id}>
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-blue-600" />
+                            <span>{resume.resume_name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                    <FileText className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                    <p className="text-sm text-gray-500">No saved resumes</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Upload a new resume or save one in the Resumes section
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Upload New Resume */}
+            {resumeSource === 'upload' && (
+              <>
+                {!resumeFile ? (
+                  <div
+                    className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-600">Click to upload resume</p>
+                    <p className="text-xs text-gray-400 mt-1">PDF only, max 5MB</p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </div>
+                ) : (
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-50 rounded">
+                          {uploadStatus === 'success' ? (
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-blue-600" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{resumeFile.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {(resumeFile.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={clearFile}
+                        disabled={uploadStatus === 'uploading'}
+                        className="text-gray-400 hover:text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-600 transition-all duration-300"
-                        style={{ width: `${uploadProgress}%` }}
+
+                    {/* Upload Progress Bar */}
+                    {uploadStatus === 'uploading' && (
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                          <span>Uploading...</span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-600 transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {uploadStatus === 'success' && (
+                      <p className="mt-2 text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        Uploaded successfully
+                      </p>
+                    )}
+
+                    <div className="mt-3">
+                      <Label htmlFor="resumeName" className="text-xs">Resume Name</Label>
+                      <Input
+                        id="resumeName"
+                        value={resumeName}
+                        onChange={(e) => setResumeName(e.target.value)}
+                        placeholder="e.g., Frontend Developer Resume"
+                        className="mt-1"
                       />
                     </div>
                   </div>
                 )}
-
-                {uploadStatus === 'success' && (
-                  <p className="mt-2 text-xs text-green-600 flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3" />
-                    Uploaded successfully
-                  </p>
-                )}
-
-                <div className="mt-3">
-                  <Label htmlFor="resumeName" className="text-xs">Resume Name</Label>
-                  <Input
-                    id="resumeName"
-                    value={resumeName}
-                    onChange={(e) => setResumeName(e.target.value)}
-                    placeholder="e.g., Frontend Developer Resume"
-                    className="mt-1"
-                  />
-                </div>
-              </div>
+              </>
             )}
           </div>
 
