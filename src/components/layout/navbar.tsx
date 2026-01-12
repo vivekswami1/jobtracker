@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Briefcase, LayoutDashboard, FileText } from 'lucide-react'
+import { Briefcase, LayoutDashboard, FileText, Calendar } from 'lucide-react'
 import { UserNav } from '@/components/auth/user-nav'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +19,7 @@ interface NavbarProps {
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/resumes', label: 'Resumes', icon: FileText },
+  { href: '/calendar', label: 'Calendar', icon: Calendar },
 ]
 
 export function Navbar({ user }: NavbarProps) {

@@ -1,11 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/layout/navbar'
-import { ApplicationList } from '@/components/dashboard/application-list'
-import { DashboardHeader } from '@/components/dashboard/dashboard-header'
-import type { JobApplicationWithDetails, Resume } from '@/types/database'
+import { CalendarView } from '@/components/dashboard/calendar-view'
+import type { JobApplicationWithDetails } from '@/types/database'
 
-export default async function DashboardPage() {
+export default async function CalendarPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -14,20 +13,13 @@ export default async function DashboardPage() {
   }
 
   // Fetch applications with resume and status history
-  const { data: applications, error: appError } = await supabase
+  const { data: applications } = await supabase
     .from('job_applications')
     .select(`
       *,
       resume:resumes(resume_id, resume_name, file_url),
       status_history(history_id, status, notes, changed_at)
     `)
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-
-  // Fetch resumes for the modal
-  const { data: resumes } = await supabase
-    .from('resumes')
-    .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
@@ -41,18 +33,10 @@ export default async function DashboardPage() {
   }))
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar user={user} />
-
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
-        <DashboardHeader
-          resumes={resumes || []}
-          totalCount={processedApplications.length}
-        />
-
-        {/* Application List */}
-        <ApplicationList applications={processedApplications} />
+      <main className="flex-1 flex flex-col">
+        <CalendarView applications={processedApplications} />
       </main>
     </div>
   )

@@ -140,7 +140,7 @@ export function ApplicationCard({ application }: ApplicationCardProps) {
   }
 
   return (
-    <div className="border rounded-lg bg-white shadow-sm">
+    <div id={`application-${application.application_id}`} className="border rounded-lg bg-white shadow-sm transition-all duration-300">
       {/* Header Row */}
       <div
         className="p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50 transition-colors"
