@@ -1,21 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { FileText, Eye, Trash2, Loader2, Download, Edit } from 'lucide-react'
+import { FileText, BarChart3, Trash2, Loader2, Download } from 'lucide-react'
 import type { Resume } from '@/types/database'
-
-// Dynamically import PDF components to avoid SSR issues
-const PDFViewerModal = dynamic(
-  () => import('@/components/pdf/pdf-viewer-modal').then(mod => ({ default: mod.PDFViewerModal })),
-  { ssr: false }
-)
-const PDFEditorModal = dynamic(
-  () => import('@/components/pdf/pdf-editor-modal').then(mod => ({ default: mod.PDFEditorModal })),
-  { ssr: false }
-)
 
 interface ResumeListProps {
   resumes: Resume[]
@@ -26,37 +15,9 @@ export function ResumeList({ resumes }: ResumeListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [loadingUrlId, setLoadingUrlId] = useState<string | null>(null)
 
-  // PDF viewer state
-  const [pdfViewerOpen, setPdfViewerOpen] = useState(false)
-  const [pdfEditorOpen, setPdfEditorOpen] = useState(false)
-  const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null)
-  const [currentPdfFilename, setCurrentPdfFilename] = useState('')
-  const [currentResumeId, setCurrentResumeId] = useState('')
-
-  // Get signed URL and open in viewer
-  const handleView = async (resume: Resume) => {
-    setLoadingUrlId(resume.resume_id)
-
-    try {
-      const response = await fetch(`/api/resumes/${resume.resume_id}/signed-url`)
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to get file URL')
-      }
-
-      // Open in in-app viewer
-      setCurrentPdfUrl(data.url)
-      setCurrentPdfFilename(data.filename || resume.resume_name + '.pdf')
-      setCurrentResumeId(resume.resume_id)
-      setPdfViewerOpen(true)
-    } catch (error) {
-      console.error('Failed to get signed URL:', error)
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Failed to access file: ${message}`)
-    } finally {
-      setLoadingUrlId(null)
-    }
+  // Navigate to resume review page
+  const handleView = (resume: Resume) => {
+    router.push(`/resumes/${resume.resume_id}/review`)
   }
 
   // Download file
@@ -85,18 +46,6 @@ export function ResumeList({ resumes }: ResumeListProps) {
     } finally {
       setLoadingUrlId(null)
     }
-  }
-
-  // Open editor
-  const handleEdit = () => {
-    setPdfViewerOpen(false)
-    setPdfEditorOpen(true)
-  }
-
-  // Save annotations
-  const handleSaveAnnotations = async (annotations: unknown[]) => {
-    console.log('Saving annotations:', annotations)
-    // Implementation: save to database
   }
 
   // Delete resume via secure API
@@ -181,18 +130,13 @@ export function ResumeList({ resumes }: ResumeListProps) {
 
             <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
-                size="icon"
+                variant="default"
+                size="sm"
                 onClick={() => handleView(resume)}
-                disabled={loadingUrlId === resume.resume_id}
-                className="text-gray-500 hover:text-blue-600"
-                title="View PDF"
+                className="gap-1.5"
               >
-                {loadingUrlId === resume.resume_id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">View Score</span>
               </Button>
 
               <Button
@@ -224,26 +168,6 @@ export function ResumeList({ resumes }: ResumeListProps) {
           </div>
         ))}
       </div>
-
-      {/* PDF Viewer Modal */}
-      <PDFViewerModal
-        open={pdfViewerOpen}
-        onOpenChange={setPdfViewerOpen}
-        pdfUrl={currentPdfUrl}
-        filename={currentPdfFilename}
-        resumeId={currentResumeId}
-        onEdit={handleEdit}
-      />
-
-      {/* PDF Editor Modal */}
-      <PDFEditorModal
-        open={pdfEditorOpen}
-        onOpenChange={setPdfEditorOpen}
-        pdfUrl={currentPdfUrl}
-        filename={currentPdfFilename}
-        resumeId={currentResumeId}
-        onSave={handleSaveAnnotations}
-      />
     </>
   )
 }

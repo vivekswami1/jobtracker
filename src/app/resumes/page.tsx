@@ -26,9 +26,9 @@ export default async function ResumesPage() {
       <main className="max-w-4xl mx-auto px-4 py-4 md:py-8">
         {/* Header */}
         <div className="mb-6 md:mb-8">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Resumes</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Rate My Resume</h1>
           <p className="text-sm md:text-base text-gray-500 mt-1">
-            Manage your resumes and link them to job applications
+            Get your ATS score and actionable feedback
           </p>
         </div>
 

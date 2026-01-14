@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import Groq from 'groq-sdk'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY || '',
+})
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +16,7 @@ export async function POST(request: Request) {
       )
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
       // Return mock data if no API key (for development)
       return NextResponse.json({
         jobTitle: 'Software Engineer',
@@ -23,8 +25,6 @@ export async function POST(request: Request) {
         atsKeywords: ['JavaScript', 'React', 'Node.js', 'TypeScript', 'AWS'],
       })
     }
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
 
     const prompt = `You are a job description parser. Extract the following information from this job posting:
 
@@ -46,9 +46,19 @@ If you cannot determine a field, use null for strings or an empty array for atsK
 Job Description:
 ${jobDescription.slice(0, 8000)}`
 
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-    const text = response.text()
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.3,
+      max_tokens: 1024,
+    })
+
+    const text = completion.choices[0]?.message?.content || ''
 
     // Clean up the response - remove markdown code blocks if present
     let cleanedText = text.trim()
